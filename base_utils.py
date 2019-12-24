@@ -172,7 +172,12 @@ class PoseTransformer(object):
         rot, tra = pose[:, :3], pose[:, 3]
         tra = tra + np.dot(rot, self.model_aligner.get_translation_transform())
         rot = np.dot(rot, self.rotation_transform)
-        return np.concatenate([rot, np.reshape(tra, newshape=[3, 1])], axis=-1)
+        old_one = np.concatenate([rot, np.reshape(tra, newshape=[3, 1])], axis=-1)
+        translation_transform = self.model_aligner.get_translation_transform()
+        translation_transform[0] *= -1
+        centring_transform = np.r_[np.concatenate([self.rotation_transform, np.reshape(translation_transform, newshape=[3, 1])], axis=-1), np.array([[0, 0, 0, 1]])]
+        new_one = np.dot(np.r_[pose, np.array([[0, 0, 0, 1]])], centring_transform)[:3]
+        return new_one
 
     @staticmethod
     def blender_pose_to_blender_euler(pose):

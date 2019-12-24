@@ -28,7 +28,7 @@ def get_calibration_matrix_K_from_blender(camera):
 
     # Parameters of intrinsic calibration matrix K
     alpha_u = f_in_mm * s_u
-    alpha_v = f_in_mm * s_u
+    alpha_v = f_in_mm * s_v
     u_0 = resolution_x_in_px * scale / 2
     v_0 = resolution_y_in_px * scale / 2
     skew = 0  # only use rectangular pixels

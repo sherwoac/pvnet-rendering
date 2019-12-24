@@ -8,12 +8,13 @@ cfg = EasyDict()
 """
 Path settings
 """
-cfg.ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+cfg.ROOT_DIR = os.path.dirname(os.path.expanduser('~/DATA/PVNET_RENDERING/'))
+cfg.SHARED_DIR = os.path.dirname(os.path.expanduser('~/shared/'))
 cfg.DATA_DIR = os.path.join(cfg.ROOT_DIR, 'data')
 cfg.MODEL_DIR = os.path.join(cfg.DATA_DIR, 'model')
 cfg.REC_DIR = os.path.join(cfg.DATA_DIR, 'record')
 cfg.FIGURE_DIR = os.path.join(cfg.ROOT_DIR, 'figure')
-cfg.BLENDER_DIR = os.path.join(cfg.ROOT_DIR, "blender")
+cfg.BLENDER_DIR = os.path.join(os.path.dirname(__file__), "blender")
 
 
 def add_path():
@@ -29,17 +30,17 @@ sys.path.extend([".", ".."])
 """
 Data settings
 """
-cfg.LINEMOD = os.path.join(cfg.DATA_DIR, 'LINEMOD')
-cfg.LINEMOD_ORIG = os.path.join(cfg.DATA_DIR, 'LINEMOD_ORIG')
-cfg.OCCLUSION_LINEMOD = os.path.join(cfg.DATA_DIR, 'OCCLUSION_LINEMOD')
-cfg.YCB = os.path.join(cfg.DATA_DIR, 'YCB')
-cfg.SUN = os.path.join(cfg.DATA_DIR, "SUN")
+cfg.LINEMOD = os.path.join(cfg.SHARED_DIR, 'LINEMOD')
+cfg.LINEMOD_ORIG = os.path.join(cfg.SHARED_DIR, 'LINEMOD_ORIG')
+cfg.OCCLUSION_LINEMOD = os.path.join(cfg.SHARED_DIR, 'OCCLUSION_LINEMOD')
+cfg.YCB = os.path.join(cfg.SHARED_DIR, 'YCB')
+cfg.SUN = os.path.join(cfg.SHARED_DIR, 'SUN2012pascalformat')
 
 """
 Rendering setting
 """
-cfg.BLENDER_PATH = '/home/pengsida/Software/blender-2.79a-linux-glibc219-x86_64/blender'
-cfg.NUM_SYN = 10
+cfg.BLENDER_PATH = os.path.expanduser('~/blender-2.79a-linux-glibc219-x86_64/blender')
+cfg.NUM_SYN = 10000
 cfg.WIDTH = 640
 cfg.HEIGHT = 480
 cfg.low_azi = 0

@@ -21,6 +21,10 @@ from blender.blender_utils import get_K_P_from_blender, get_3x4_P_matrix_from_bl
 import pickle
 import time
 
+linemod_intrinsic = np.array([[572.4114, 0., 325.2611],
+                              [0., 573.57043, 242.04899],
+                              [0., 0., 1.]])
+
 
 def parse_argument():
     parser = argparse.ArgumentParser(description='Renders given obj file by rotation a camera around it.')
@@ -83,6 +87,7 @@ def setup_light(scene):
 
 
 def setup():
+    from blender.blender_utils import get_calibration_matrix_K_from_blender
     bpy.ops.object.select_all(action='TOGGLE')
     camera = bpy.data.objects['Camera']
     bpy.data.cameras['Camera'].clip_end = 10000
@@ -94,9 +99,22 @@ def setup():
     bpy.context.scene.render.alpha_mode = 'TRANSPARENT'
     bpy.context.scene.render.image_settings.color_mode = 'RGBA'
 
+    print(linemod_intrinsic)
+
+    setup_camera(bpy.context.scene,
+                 fx=linemod_intrinsic[0, 0],
+                 fy=linemod_intrinsic[1, 1],
+                 cx=linemod_intrinsic[0, 2],
+                 cy=linemod_intrinsic[1, 2])
+
+    print(get_calibration_matrix_K_from_blender(bpy.context.scene.objects['Camera'].data))
     # modify the camera intrinsic matrix
     # bpy.data.cameras['Camera'].sensor_width = 39.132693723430386
     # bpy.context.scene.render.pixel_aspect_y = 1.6272340492401836
+    # bpy.context.scene.render.pixel_aspect_x = cfg.WIDTH / cfg.HEIGHT
+
+    # bpy.data.cameras['Camera'].sensor_width = 39.132693723430386
+    # bpy.context.scene.render.pixel_aspect_y = 1.33
 
     cam_constraint = camera.constraints.new(type='TRACK_TO')
     cam_constraint.track_axis = 'TRACK_NEGATIVE_Z'
@@ -151,6 +169,25 @@ def quaternionFromYawPitchRoll(yaw, pitch, roll):
     q3 = c1 * s2 * c3 + s1 * c2 * s3
     q4 = s1 * c2 * c3 - c1 * s2 * s3
     return q1, q2, q3, q4
+
+# Setup the camera
+def setup_camera(scene, fx=572, fy=574, cx=325, cy=242):
+    from mathutils import Matrix
+    cam = scene.objects['Camera']
+    width = scene.render.resolution_x
+    height = scene.render.resolution_y
+    cam.data.sensor_height = cam.data.sensor_width * height / width
+    cam.data.lens = (fx + fy) / 2 * cam.data.sensor_width / width
+    cam.data.shift_x = (width / 2 - cx) / width
+    cam.data.shift_y = (cy - height / 2) / width
+    print(width, height, cam.data.sensor_height, cam.data.lens, cam.data.shift_x, cam.data.shift_y)
+    # change to OpenCV camera coordinate system
+    cam.matrix_world = Matrix(((1.0, 0.0, 0.0, 0.0),
+                               (0.0, -1.0, 0.0, 0.0),
+                               (0.0, 0.0, -1.0, 0.0),
+                               (0.0, 0.0, 0.0, 1.0)))
+    # scene.objects['Camera'] = cam
+    return cam
 
 
 def camPosToQuaternion(cx, cy, cz):
@@ -234,6 +271,10 @@ def render(camera, outfile, pose):
     camera.location[1] = cy  # + np.random.uniform(-g_camPos_noise,g_camPos_noise)
     camera.location[2] = cz  # + np.random.uniform(-g_camPos_noise,g_camPos_noise)
     camera.rotation_mode = 'QUATERNION'
+
+    camera.data.lens_unit = 'FOV'
+    # camera.data.angle_y = 2 * np.arctan(bpy.context.scene.render.resolution_y / (2 * 573.57043)) / 1.15  # magic
+    # camera.data.angle_x = 2 * np.arctan(bpy.context.scene.render.resolution_x / (2 * 572.41140)) / 1.15 # magic
 
     camera.rotation_quaternion[0] = q[0]
     camera.rotation_quaternion[1] = q[1]
@@ -338,6 +379,7 @@ def batch_render_with_linemod(args, camera):
     os.system('mkdir -p {}'.format(args.output_dir))
     bpy.ops.import_mesh.ply(filepath=args.input)
     object = bpy.data.objects[os.path.basename(args.input).replace('.ply', '')]
+    # object.scale = (.001,.001,.001)
     bpy.context.scene.render.image_settings.file_format = 'JPEG'
 
     # set up the cycles render configuration
@@ -347,7 +389,8 @@ def batch_render_with_linemod(args, camera):
     bpy.context.scene.cycles.samples = 100
 
     bpy.context.user_preferences.addons['cycles'].preferences.compute_device_type = "CUDA"
-    bpy.context.scene.cycles.device = 'GPU'
+    bpy.context.user_preferences.addons['cycles'].preferences.compute_device = 'CUDA_0'
+    # bpy.context.scene.cycles.device = 'GPU'
 
     for mesh in bpy.data.meshes:
         mesh.use_auto_smooth = True
@@ -366,7 +409,7 @@ def batch_render_with_linemod(args, camera):
     bg_imgs = np.random.choice(bg_imgs, size=cfg.NUM_SYN)
     poses = np.load(args.poses_path)
     begin_num_imgs = len(glob.glob(os.path.join(args.output_dir, '*.jpg')))
-    for i in range(begin_num_imgs, cfg.NUM_SYN):
+    for i in range(begin_num_imgs, poses.shape[0]):
         # overlay an background image and place the object
         img_name = os.path.basename(bg_imgs[i])
         bpy.data.images.load(bg_imgs[i])
@@ -384,8 +427,11 @@ def batch_render_with_linemod(args, camera):
         KRT = get_K_P_from_blender(camera)
         world_to_camera_pose = np.append(KRT['RT'], [[0, 0, 0, 1]], axis=0)
         world_to_camera_pose = np.dot(world_to_camera_pose, object_to_world_pose)[:3]
+        # with open('{}/{}_RT.pkl'.format(args.output_dir, i), 'wb') as f:
+        #     pickle.dump({'RT': world_to_camera_pose, 'K': KRT['K']}, f)
         with open('{}/{}_RT.pkl'.format(args.output_dir, i), 'wb') as f:
-            pickle.dump({'RT': world_to_camera_pose, 'K': KRT['K']}, f)
+            pickle.dump({'RT': world_to_camera_pose, 'K': linemod_intrinsic}, f)
+
         bpy.data.images.remove(bpy.data.images[img_name])
 
 
@@ -443,8 +489,14 @@ def batch_render_ycb(args, camera):
         KRT = get_K_P_from_blender(camera)
         world_to_camera_pose = np.append(KRT['RT'], [[0, 0, 0, 1]], axis=0)
         world_to_camera_pose = np.dot(world_to_camera_pose, object_to_world_pose)[:3]
+
+        # with open('{}/{}_RT.pkl'.format(args.output_dir, i), 'wb') as f:
+        #     pickle.dump({'RT': world_to_camera_pose, 'K': KRT['K']}, f)
         with open('{}/{}_RT.pkl'.format(args.output_dir, i), 'wb') as f:
-            pickle.dump({'RT': world_to_camera_pose, 'K': KRT['K']}, f)
+            pickle.dump({'RT': world_to_camera_pose, 'K': linemod_intrinsic}, f)
+
+        print(10 * '-', linemod_intrinsic, 10 * '-')
+
         bpy.data.images.remove(bpy.data.images[img_name])
 
 

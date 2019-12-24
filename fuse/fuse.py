@@ -288,11 +288,13 @@ def randomly_sample_foreground(image_db,linemod_dir):
 
 def save_fuse_data(output_dir, idx, fuse_img, fuse_mask, fuse_begins, fuse_poses):
     os.makedirs(output_dir, exist_ok=True)
-    imsave(os.path.join(output_dir,'{}_rgb.jpg'.format(idx)),fuse_img)
+    imsave(os.path.join(output_dir, f'{idx}_rgb.jpg'), fuse_img)
     fuse_mask=fuse_mask.astype(np.uint8)
-    imsave(os.path.join(output_dir,'{}_mask.png'.format(idx)),fuse_mask)
-    save_pickle([np.asarray(fuse_begins,np.int32), np.asarray(fuse_poses,np.float32)],
-                os.path.join(output_dir,'{}_info.pkl'.format(idx)))
+    imsave(os.path.join(output_dir, f'{idx}_mask.png'), fuse_mask)
+    save_pickle([np.asarray(fuse_begins,np.int32),
+                 np.asarray(fuse_poses, np.float32)],
+                os.path.join(output_dir, f'{idx}_info.pkl'))
+    print(os.path.abspath(output_dir))
 
 def randomly_sample_foreground_ycb(image_db, ycb_dir, ycb_cls_idx):
     idx=np.random.randint(0,len(image_db.train_real_set))
@@ -322,8 +324,10 @@ def randomly_sample_foreground_ycb(image_db, ycb_dir, ycb_cls_idx):
 
     return rgb, mask, begin, pose, K
 
-linemod_cls_names=['ape','cam','cat','duck','glue','iron','phone', 'benchvise','can','driller','eggbox','holepuncher','lamp']
-
+# linemod_cls_names=['ape','cam','cat','duck','glue','iron','phone', 'benchvise','can','driller','eggbox','holepuncher','lamp']
+linemod_cls_names=['ape', 'can', 'cat', 'duck', 'driller', 'eggbox', 'glue', 'holepuncher']
+# linemod_cls_names=['cat']
+# linemod_cls_names = ['ape', 'can', 'duck', 'driller', 'eggbox', 'glue', 'holepuncher']
 
 def run():
     output_dir='./data/LINEMOD/fuse/'
@@ -332,16 +336,16 @@ def run():
     background_dir=os.path.join(cfg.SUN, "JPEGImages")
     cache_dir='./'
     fuse_num=10000
-    worker_num=2
+    worker_num=5
     prepare_dataset_parallel(output_dir, linemod_dir, linemod_orig_dir, fuse_num, background_dir, cache_dir, worker_num)
 
 
 if __name__=="__main__":
-    output_dir='tmp/'
-    linemod_dir='/home/liuyuan/data/LINEMOD'
-    linemod_orig_dir='/home/liuyuan/data/LINEMOD_ORIG'
-    background_dir='/home/liuyuan/data/SUN2012pascalformat/JPEGImages'
+    output_dir = '/home/adam/DATA/BB8_PASCAL_DATA/PVNET/fuse'
+    linemod_dir = '/home/adam/shared/LINEMOD'
+    linemod_orig_dir = '/home/adam/shared/LINEMOD_ORIG'
+    background_dir = '/home/adam/shared/SUN2012pascalformat/JPEGImages'
     cache_dir='./'
-    fuse_num=10000
-    worker_num=2
+    fuse_num = 10000
+    worker_num = 2
     prepare_dataset_parallel(output_dir, linemod_dir, linemod_orig_dir, fuse_num, background_dir, cache_dir, worker_num)

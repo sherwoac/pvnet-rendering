@@ -66,10 +66,6 @@ class DataStatistics(object):
         return quat, translation
 
     def get_dataset_poses(self):
-        if os.path.exists(self.dataset_poses_path):
-            poses = np.load(self.dataset_poses_path)
-            return poses[:, :3], poses[:, 3:]
-
         eulers = []
         translations = []
         train_set = np.loadtxt(os.path.join(cfg.LINEMOD, '{}/training_range.txt'.format(self.class_type)),np.int32)
@@ -77,7 +73,28 @@ class DataStatistics(object):
             rot_path = os.path.join(self.dir_path, 'rot{}.rot'.format(idx))
             tra_path = os.path.join(self.dir_path, 'tra{}.tra'.format(idx))
             pose = read_pose(rot_path, tra_path)
-            euler = self.pose_transformer.orig_pose_to_blender_euler(pose)
+            pose = self.pose_transformer.orig_pose_to_blender_pose(pose)
+            euler = self.pose_transformer.blender_pose_to_blender_euler(pose)
+            eulers.append(euler)
+            translations.append(pose[:, 3])
+
+        eulers = np.array(eulers)
+        translations = np.array(translations)
+        np.save(self.dataset_poses_path, np.concatenate([eulers, translations], axis=-1))
+
+        return eulers, translations
+
+    def get_all_dataset_poses(self):
+        eulers = []
+        translations = []
+        for idx in range(1188):
+            rot_path = os.path.join(self.dir_path, 'rot{}.rot'.format(idx))
+            tra_path = os.path.join(self.dir_path, 'tra{}.tra'.format(idx))
+            pose = read_pose(rot_path, tra_path)
+            # euler = self.pose_transformer.orig_pose_to_blender_euler(pose)
+            pose = self.pose_transformer.orig_pose_to_blender_pose(pose)
+            euler = self.pose_transformer.blender_pose_to_blender_euler(pose)
+
             eulers.append(euler)
             translations.append(pose[:, 3])
 
@@ -109,6 +126,7 @@ class DataStatistics(object):
 
     def sample_poses(self):
         eulers, translations = self.get_dataset_poses()
+        # eulers, translations = self.get_all_dataset_poses()
         num_samples = cfg.NUM_SYN
         azimuths, elevations = self.sample_sphere(num_samples)
         euler_sampler = stats.gaussian_kde(eulers.T)
